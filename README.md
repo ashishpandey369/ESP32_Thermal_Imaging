@@ -15,8 +15,8 @@ A PlatformIO-based thermal imaging project using an ESP32 and an MLX90640 32×24
 
 ## Hardware
 
-- ESP32 development board compatible with PlatformIO.
-- MLX90640 thermal imaging sensor module.
+- ESP32 development board compatible with the PlatformIO `esp32dev` target.
+- Grove Thermal Imaging Camera / IR Array based on the MLX90640 32×24 sensor.
 - USB cable for power, programming, and initial data streaming.
 
 ## System Architecture
@@ -54,13 +54,13 @@ A PlatformIO-based thermal imaging project using an ESP32 and an MLX90640 32×24
 ESP32_Thermal_Imaging/
 ├── firmware/
 │   └── esp32/
+│       ├── src/
+│       │   └── main.cpp
 │       └── README.md
 ├── pc/
 │   └── README.md
 ├── hardware/
-│   ├── wiring/
-│   │   └── README.md
-│   └── enclosure/
+│   └── wiring/
 │       └── README.md
 ├── documentation/
 │   ├── development_log.md
@@ -68,15 +68,14 @@ ESP32_Thermal_Imaging/
 │   └── calibration.md
 ├── images/
 ├── platformio.ini
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ## Development Roadmap
 
 ### Phase 1 — Hardware Bring-Up
 
-1. Confirm ESP32 board and I²C pins.
+1. Confirm ESP32 board and I²C pins. **Done for current `esp32dev` target.**
 2. Connect the MLX90640.
 3. Detect the sensor on the I²C bus.
 4. Read a stable thermal frame.
@@ -119,9 +118,9 @@ The firmware is managed with **PlatformIO** and targets the Arduino framework on
 
 ## Current Status
 
-**Project initialized — PlatformIO configuration added.**
+**Milestone 1 firmware added — ready for physical ESP32 + MLX90640 bring-up.**
 
-The next milestone is the first working ESP32 + MLX90640 sensor readout and verification of the live 32×24 thermal frame.
+The firmware initializes I²C on GPIO 21/22, checks the MLX90640 at `0x33`, extracts calibration parameters, acquires thermal frames, validates all 768 temperatures, and sends a diagnostic plus machine-readable frame over USB serial at 115200 baud.
 
 ## License
 
