@@ -1,0 +1,13 @@
+# PlatformIO
+.pio/
+.piolibdeps/
+
+# Python virtual environment
+pc/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# VS Code local settings
+.vscode/
