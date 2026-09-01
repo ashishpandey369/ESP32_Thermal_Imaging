@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include "system_config.h"
 #include "thermal_transport.h"
 
 class WifiTransport final : public ThermalTransport
