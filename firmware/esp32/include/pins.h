@@ -1,8 +1,8 @@
 #pragma once
 
-// MLX90640 I2C pins
-#define CAMERA_SDA_PIN 21
-#define CAMERA_SCL_PIN 22
+#include <Arduino.h>
 
-// MLX90640 I2C address
-#define CAMERA_I2C_ADDRESS 0x33
+// MLX90640 I2C connection
+constexpr uint8_t CAMERA_SDA_PIN = 21;
+constexpr uint8_t CAMERA_SCL_PIN = 22;
+constexpr uint8_t CAMERA_I2C_ADDRESS = 0x33;
