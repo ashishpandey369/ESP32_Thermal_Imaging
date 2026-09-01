@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "thermal_frame.h"
 
 class ThermalCamera
 {
@@ -8,22 +9,16 @@ public:
     bool begin();
     bool update();
 
-    const float *getTemperatures() const;
-    float getMinimumTemperature() const;
-    float getMaximumTemperature() const;
-    float getCenterTemperature() const;
-    uint32_t getFrameNumber() const;
+    const ThermalFrame &getFrame() const;
+    bool isInitialized() const;
 
 private:
     bool sensorConnected();
     bool initializeSensor();
     bool readThermalFrame();
 
-    float temperatures[768] = {};
-    uint32_t frameNumber = 0;
-    float minimumTemperature = 0.0f;
-    float maximumTemperature = 0.0f;
-    float centerTemperature = 0.0f;
+    ThermalFrame frame{};
+    float temperatures[ThermalConfig::THERMAL_PIXEL_COUNT] = {};
     bool initialized = false;
 };
 
