@@ -1,6 +1,5 @@
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import Qt
 
 
 class ThermalRenderer:
@@ -9,7 +8,6 @@ class ThermalRenderer:
         self.view.ui.roiBtn.hide()
         self.view.ui.menuBtn.hide()
         self.view.setColorMap(pg.colormap.get('inferno'))
-        self.view.setPredefinedGradient('inferno')
 
     def update(self, frame):
         image = np.asarray(frame['pixels'], dtype=np.float32)
