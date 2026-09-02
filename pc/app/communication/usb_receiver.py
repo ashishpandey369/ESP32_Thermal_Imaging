@@ -35,4 +35,5 @@ class UsbReceiver:
             self.buffer += self.serial.read(waiting)
 
         frames, self.buffer = parse_binary_frames(self.buffer)
-        return frames
+        # Latest-frame-only keeps the UI live if the PC briefly falls behind.
+        return frames[-1:] if frames else []
