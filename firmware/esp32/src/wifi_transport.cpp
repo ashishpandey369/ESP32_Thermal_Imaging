@@ -34,58 +34,108 @@ bool WifiTransport::begin()
         false,
         1);
 
-    if (started) {
-        server.begin();
+    if (!started) {
+        return false;
     }
 
-    return started;
+    server.begin();
+
+    // Run the TCP sender independently from the MLX90640 acquisition loop.
+    // A dedicated task prevents a slow Wi-Fi client from stalling capture.
+    const BaseType_t taskResult = xTaskCreatePinnedToCore(
+        senderTaskEntry,
+        "thermal_wifi_tx",
+        8192,
+        this,
+        2,
+        &senderTaskHandle,
+        0);
+
+    return taskResult == pdPASS;
 }
 
 void WifiTransport::sendFrame(const ThermalFrame &frame)
 {
-    if (!client || !client.connected()) {
-        WiFiClient incoming = server.available();
-        if (incoming) {
-            client.stop();
-            client = incoming;
-            client.setNoDelay(true);
-        }
-    }
+    // Latest-frame-only mailbox. The acquisition loop never waits for TCP.
+    // If the network is behind, an older unsent frame is simply replaced.
+    portENTER_CRITICAL(&frameMux);
+    pendingFrame = frame;
+    framePending = true;
+    portEXIT_CRITICAL(&frameMux);
+}
 
-    if (!client || !client.connected()) {
-        return;
-    }
+void WifiTransport::senderTaskEntry(void *parameter)
+{
+    static_cast<WifiTransport *>(parameter)->senderTask();
+}
 
-    // Binary frame: 16-byte header + 3072-byte float32 pixel payload
-    // + 16 bytes of statistics + 4-byte CRC32 = 3108 bytes.
+void WifiTransport::senderTask()
+{
     uint8_t packet[ThermalProtocol::FRAME_SIZE];
-    std::memset(packet, 0, ThermalProtocol::HEADER_SIZE);
 
-    writeU32LE(packet + 0, ThermalProtocol::MAGIC);
-    packet[4] = ThermalProtocol::VERSION;
-    packet[5] = 0;
-    writeU16LE(packet + 6, ThermalProtocol::HEADER_SIZE);
-    writeU32LE(packet + 8, frame.frameNumber);
-    writeU32LE(packet + 12, frame.timestamp);
+    for (;;) {
+        // Accept a new client without involving the sensor loop.
+        if (!client || !client.connected()) {
+            WiFiClient incoming = server.available();
+            if (incoming) {
+                client.stop();
+                client = incoming;
+                client.setNoDelay(true);
+            }
+        }
 
-    std::memcpy(
-        packet + ThermalProtocol::HEADER_SIZE,
-        frame.pixels,
-        ThermalProtocol::PIXEL_DATA_SIZE);
+        bool haveFrame = false;
 
-    uint8_t *stats = packet + ThermalProtocol::HEADER_SIZE + ThermalProtocol::PIXEL_DATA_SIZE;
-    std::memcpy(stats + 0, &frame.minimum, sizeof(float));
-    std::memcpy(stats + 4, &frame.maximum, sizeof(float));
-    std::memcpy(stats + 8, &frame.average, sizeof(float));
-    std::memcpy(stats + 12, &frame.center, sizeof(float));
+        // Snapshot the newest frame into the packet buffer, then release the
+        // short critical section before doing CRC calculation or TCP I/O.
+        portENTER_CRITICAL(&frameMux);
+        if (framePending) {
+            std::memset(packet, 0, ThermalProtocol::HEADER_SIZE);
 
-    const uint32_t crc = ThermalProtocol::crc32(
-        packet,
-        ThermalProtocol::HEADER_SIZE + ThermalProtocol::PAYLOAD_SIZE);
-    writeU32LE(packet + ThermalProtocol::HEADER_SIZE + ThermalProtocol::PAYLOAD_SIZE, crc);
+            writeU32LE(packet + 0, ThermalProtocol::MAGIC);
+            packet[4] = ThermalProtocol::VERSION;
+            packet[5] = 0;
+            writeU16LE(packet + 6, ThermalProtocol::HEADER_SIZE);
+            writeU32LE(packet + 8, pendingFrame.frameNumber);
+            writeU32LE(packet + 12, pendingFrame.timestamp);
 
-    const size_t sent = client.write(packet, sizeof(packet));
-    if (sent != sizeof(packet)) {
-        client.stop();
+            std::memcpy(
+                packet + ThermalProtocol::HEADER_SIZE,
+                pendingFrame.pixels,
+                ThermalProtocol::PIXEL_DATA_SIZE);
+
+            uint8_t *stats = packet + ThermalProtocol::HEADER_SIZE + ThermalProtocol::PIXEL_DATA_SIZE;
+            std::memcpy(stats + 0, &pendingFrame.minimum, sizeof(float));
+            std::memcpy(stats + 4, &pendingFrame.maximum, sizeof(float));
+            std::memcpy(stats + 8, &pendingFrame.average, sizeof(float));
+            std::memcpy(stats + 12, &pendingFrame.center, sizeof(float));
+
+            framePending = false;
+            haveFrame = true;
+        }
+        portEXIT_CRITICAL(&frameMux);
+
+        if (!haveFrame) {
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+
+        // No client yet: do not retain stale frames. The next sensor frame
+        // will replace this one in the mailbox.
+        if (!client || !client.connected()) {
+            continue;
+        }
+
+        const uint32_t crc = ThermalProtocol::crc32(
+            packet,
+            ThermalProtocol::HEADER_SIZE + ThermalProtocol::PAYLOAD_SIZE);
+        writeU32LE(
+            packet + ThermalProtocol::HEADER_SIZE + ThermalProtocol::PAYLOAD_SIZE,
+            crc);
+
+        const size_t sent = client.write(packet, sizeof(packet));
+        if (sent != sizeof(packet)) {
+            client.stop();
+        }
     }
 }
