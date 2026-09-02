@@ -11,3 +11,12 @@ __pycache__/
 
 # VS Code local settings
 .vscode/
+
+# Flutter
+mobile/.dart_tool/
+mobile/.idea/
+mobile/build/
+mobile/.metadata
+mobile/pubspec.lock
+mobile/esp32_thermal_imaging.iml
+mobile/esp32_thermal_imaging_android.iml
