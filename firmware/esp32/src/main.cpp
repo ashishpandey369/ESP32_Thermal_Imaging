@@ -38,11 +38,18 @@ void setup()
 
 void loop()
 {
+    const uint32_t captureStart = micros();
+
     if (camera.update()) {
         const ThermalFrame &frame = camera.getFrame();
+
+        // Keep both transports on the same raw binary frame. No image
+        // interpolation or color processing is performed on the ESP32.
         usbTransport.sendFrame(frame);
         wifiTransport.sendFrame(frame);
     }
 
-    delay(10);
+    // The sensor controls the frame cadence. Avoid adding an arbitrary
+    // delay here because it only increases end-to-end latency.
+    (void)captureStart;
 }
