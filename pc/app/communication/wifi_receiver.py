@@ -29,8 +29,9 @@ class WifiReceiver:
         if not self.connected():
             return []
 
-        # Drain all currently available bytes. This prevents an old frame
-        # backlog from turning into visible latency at higher frame rates.
+        # Drain all currently available bytes. We intentionally display only
+        # the newest complete frame so network buffering cannot become visible
+        # latency as the sensor rate increases.
         while True:
             try:
                 chunk = self.socket.recv(65536)
@@ -47,4 +48,4 @@ class WifiReceiver:
                 return []
 
         frames, self.buffer = parse_binary_frames(self.buffer)
-        return frames
+        return frames[-1:] if frames else []
