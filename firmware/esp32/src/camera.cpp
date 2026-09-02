@@ -32,9 +32,11 @@ bool ThermalCamera::initializeSensor()
 
     mlx90640.setMode(MLX90640_CHESS);
     mlx90640.setResolution(MLX90640_ADC_18BIT);
-    // 8 Hz gives a noticeably more responsive live view while remaining
-    // within the MLX90640 operating range used by this project.
-    mlx90640.setRefreshRate(MLX90640_8_HZ);
+
+    // Start at 16 Hz. The transport is binary, so the receiver can keep up
+    // with the larger frame rate without CSV formatting overhead.
+    // We will benchmark this before moving to 32 Hz.
+    mlx90640.setRefreshRate(MLX90640_16_HZ);
 
     return true;
 }
