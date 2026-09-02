@@ -1,20 +1,18 @@
 import socket
 
-from .frame_protocol import parse_line
+from .frame_protocol import parse_binary_frames
 
 
 class WifiReceiver:
     def __init__(self):
         self.socket = None
         self.buffer = b''
-        self.state = {}
 
     def connect(self, host: str = '192.168.4.1', port: int = 8080):
         self.close()
         self.socket = socket.create_connection((host, port), timeout=3)
         self.socket.setblocking(False)
         self.buffer = b''
-        self.state = {}
 
     def close(self):
         if self.socket:
@@ -31,27 +29,22 @@ class WifiReceiver:
         if not self.connected():
             return []
 
-        try:
-            chunk = self.socket.recv(65536)
-            if chunk:
+        # Drain all currently available bytes. This prevents an old frame
+        # backlog from turning into visible latency at higher frame rates.
+        while True:
+            try:
+                chunk = self.socket.recv(65536)
+                if not chunk:
+                    self.close()
+                    return []
                 self.buffer += chunk
-            else:
+                if len(chunk) < 65536:
+                    break
+            except BlockingIOError:
+                break
+            except OSError:
                 self.close()
                 return []
-        except BlockingIOError:
-            pass
-        except OSError:
-            self.close()
-            return []
 
-        frames = []
-        while b'\n' in self.buffer:
-            raw, self.buffer = self.buffer.split(b'\n', 1)
-            try:
-                line = raw.decode('ascii')
-            except UnicodeDecodeError:
-                continue
-            frame = parse_line(line, self.state)
-            if frame is not None:
-                frames.append(frame)
+        frames, self.buffer = parse_binary_frames(self.buffer)
         return frames
