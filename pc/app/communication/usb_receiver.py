@@ -1,14 +1,13 @@
 import serial
 from serial.tools import list_ports
 
-from .frame_protocol import parse_line
+from .frame_protocol import parse_binary_frames
 
 
 class UsbReceiver:
     def __init__(self):
         self.serial = None
         self.buffer = b''
-        self.state = {}
 
     @staticmethod
     def ports():
@@ -18,7 +17,6 @@ class UsbReceiver:
         self.close()
         self.serial = serial.Serial(port, baudrate=baud, timeout=0)
         self.buffer = b''
-        self.state = {}
 
     def close(self):
         if self.serial:
@@ -36,14 +34,5 @@ class UsbReceiver:
         if waiting:
             self.buffer += self.serial.read(waiting)
 
-        frames = []
-        while b'\n' in self.buffer:
-            raw, self.buffer = self.buffer.split(b'\n', 1)
-            try:
-                line = raw.decode('ascii')
-            except UnicodeDecodeError:
-                continue
-            frame = parse_line(line, self.state)
-            if frame is not None:
-                frames.append(frame)
+        frames, self.buffer = parse_binary_frames(self.buffer)
         return frames
