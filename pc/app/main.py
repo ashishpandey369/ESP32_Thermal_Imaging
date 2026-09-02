@@ -1,4 +1,5 @@
 import sys
+import time
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
@@ -34,6 +35,9 @@ class ThermalWindow(QMainWindow):
         self.active = None
         self.frame_count = 0
         self.last_frame_number = None
+        self.last_fps_time = time.monotonic()
+        self.fps_frames = 0
+        self.display_fps = 0.0
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -102,7 +106,7 @@ class ThermalWindow(QMainWindow):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll)
-        self.timer.start(20)
+        self.timer.start(10)
 
     def refresh_ports(self):
         current = self.port_combo.currentText()
@@ -117,6 +121,9 @@ class ThermalWindow(QMainWindow):
         self.usb.close()
         self.wifi.close()
         self.active = None
+        self.last_frame_number = None
+        self.fps_frames = 0
+        self.last_fps_time = time.monotonic()
 
     def connect_usb(self):
         port = self.port_combo.currentText()
@@ -167,7 +174,19 @@ class ThermalWindow(QMainWindow):
             if delta > 0:
                 self.frame_count += delta
         self.last_frame_number = frame['frame']
-        self.fps_label.setText('2 Hz target')
+
+        self.fps_frames += 1
+        now = time.monotonic()
+        elapsed = now - self.last_fps_time
+        if elapsed >= 0.5:
+            measured = self.fps_frames / elapsed
+            self.display_fps = (
+                measured if self.display_fps == 0.0
+                else (self.display_fps * 0.7) + (measured * 0.3)
+            )
+            self.fps_label.setText(f'{self.display_fps:.1f} FPS')
+            self.fps_frames = 0
+            self.last_fps_time = now
 
     def closeEvent(self, event):
         self.disconnect_all()
