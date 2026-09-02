@@ -1,0 +1,14 @@
+name: esp32_thermal_imaging
+publish_to: 'none'
+description: Live MLX90640 thermal imaging client for ESP32 Wi-Fi.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
